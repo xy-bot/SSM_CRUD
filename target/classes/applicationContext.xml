@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+		
+		<context:component-scan base-package="com">
+			<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+		</context:component-scan>
+		
+		<context:property-placeholder location="classpath:db.properties"/>
+		<bean name="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+			<property name="driverClass" value="${jdbc.driver}"></property>
+			<property name="jdbcUrl" value="${jdbc.url}"></property>
+			<property name="user" value="${jdbc.user}"></property>
+			<property name="password" value="${jdbc.password}"></property>
+		</bean>
+		<bean name="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+			<property name="configLocation" value="classpath:sqlMapperConfig.xml"></property>
+			<property name="dataSource" ref="dataSource"></property>
+			<!-- 指定mapper.xml文件位置 -->
+			<property name="mapperLocations" value="classpath:Mapper/*.xml"></property>
+		</bean>
+		<!-- 扫描所有dao接口实现，加入到ioc容器中 -->
+		<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+			<property name="basePackage" value="com.Dao"></property>
+		</bean>
+		
+		<!--配置一个可以批量生产sqlsessionde  -->
+		<bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+			<constructor-arg name="sqlSessionFactory" ref="sqlSessionFactory"></constructor-arg>
+			<!-- 执行器类型,设置成批量生成 -->
+			<constructor-arg name="executorType" value="BATCH"></constructor-arg>
+		</bean>
+		
+		<bean name="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+			<property name="dataSource" ref="dataSource"></property>
+		</bean>
+		
+		<tx:advice id="txAdvice" transaction-manager="transactionManager">
+			<tx:attributes>
+				<tx:method name="*"/>
+				<!-- 设置方法前缀为get方法只读 -->
+				<tx:method name="get" read-only="true"/>
+			</tx:attributes>
+		</tx:advice>
+		
+		<aop:config>
+		<!--代表com.service下所有方法 -->
+			<aop:pointcut expression="execution(* com.Service..*(..))" id="txPoint"/>
+			<aop:advisor advice-ref="txAdvice" pointcut-ref="txPoint"/>
+		</aop:config>
+		
+		<tx:annotation-driven transaction-manager="transactionManager"/>
+		
+</beans>
